@@ -1,0 +1,83 @@
+openapi: 3.1.0
+info:
+  title: Refrain slop score
+  description: Scores a product name for how AI-generated it sounds, using the public slop list (rules version 595ca8c). Rule-based, no model calls, free.
+  version: 1.0.0
+  license:
+    name: MIT
+servers:
+  - url: https://antislop-namer.smaffan21.workers.dev
+paths:
+  /api/v1/score:
+    post:
+      operationId: scoreName
+      summary: Score a name for AI-slop patterns
+      description: Returns a 0-100 slop score, a band and the rules that fired. A name scoring 40 or more is crossed out.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 40
+                  description: The name to score, for example "Lumora".
+                description:
+                  type: string
+                  maxLength: 300
+                  description: Optional one-line product description. Used to catch names that glue the description's own words together.
+      responses:
+        "200":
+          description: The score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Score"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: Request body too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Score:
+      type: object
+      required: [name, score, band, blocked, reasons]
+      properties:
+        name:
+          type: string
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Sum of the points of every rule that fired, capped at 100.
+        band:
+          type: string
+          enum: [low, mid, high]
+          description: low under 25, mid 25-59, high 60 and up.
+        blocked:
+          type: boolean
+          description: True when the score is 40 or more, or the name has fewer than 3 letters.
+        reasons:
+          type: array
+          items:
+            type: string
+          description: One plain-language line per rule that fired, with its points, for example "Ends in -ora, a common AI ending (+55)".
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
